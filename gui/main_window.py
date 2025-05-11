@@ -36,21 +36,21 @@ class MainWindow(QMainWindow):
         # Frame Size Input
         self.frame_size_label = QLabel("Enter Frame Size: ", self)
         self.frame_size_input = QLineEdit(self)
-        self.frame_size_input.setPlaceholderText("Enter frame size (e.g., 4)")
+        self.frame_size_input.setPlaceholderText("Enter frame size ")
         layout.addWidget(self.frame_size_label)
         layout.addWidget(self.frame_size_input)
 
         # Page Size Input
         self.page_size_label = QLabel("Enter Page Size: ", self)
         self.page_size_input = QLineEdit(self)
-        self.page_size_input.setPlaceholderText("Enter page size (e.g., 8)")
+        self.page_size_input.setPlaceholderText("Enter page size ")
         layout.addWidget(self.page_size_label)
         layout.addWidget(self.page_size_input)
 
         # Logical Addresses Input
         self.logical_address_label = QLabel("Enter Logical Addresses (comma-separated): ", self)
         self.logical_address_input = QLineEdit(self)
-        self.logical_address_input.setPlaceholderText("e.g., 0,1,2,3,0,4,1,5,2,6,3,7")
+        self.logical_address_input.setPlaceholderText()
         layout.addWidget(self.logical_address_label)
         layout.addWidget(self.logical_address_input)
 
