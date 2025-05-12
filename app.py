@@ -91,13 +91,6 @@ if st.button("Start Simulation"):
         result_df = pd.DataFrame(log_data, columns=["Logical Address", "TLB Status", "Page Fault", "TLB State", "Frame Table State"])
         st.dataframe(result_df)
 
-        # Debugging: Show internal states
-        st.subheader("🔧 Debugging Information")
-        # Assuming the PageTable class has an attribute like 'entries' or 'data' to store page entries
-        st.write("**Page Table State**:", page_table.entries)  
-        st.write("**Frame Table State**:", frame_table.frames)
-        st.write("**TLB State**:", tlb.entries)
-
 
         # Display simulation statistics
         st.subheader("📊 Simulation Statistics")
