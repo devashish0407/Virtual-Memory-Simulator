@@ -7,11 +7,12 @@ class TLB:
         self.total_hits = 0      # Track total hits
 
     def lookup(self, logical_address):
-        """Lookup a logical address in the TLB and return the frame number if found."""
         self.total_accesses += 1
         if logical_address in self.entries:
+            self.total_hits += 1  # <-- increment hits here
             return self.entries[logical_address]
         return None
+
 
     def add_entry(self, logical_address, frame_number):
         """Add a new entry to the TLB."""

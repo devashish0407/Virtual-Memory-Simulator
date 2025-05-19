@@ -29,25 +29,42 @@ class VirtualMemorySimulator:
     def access_address(self, logical_address, page_size):
         page_number = logical_address // page_size
         offset = logical_address % page_size
-        
+    
+        if page_number >= len(self.page_table.entries):
+            raise IndexError("Page number out of bounds.")
+
         frame = self.page_table.get_frame(page_number)
-        
-        if frame is None:  # Page fault occurs
-            print(f"Page fault at logical address {logical_address}.")
+        page_fault = False
+
+        if frame is None:
+            page_fault = True
             self.load_page(page_number)
+            frame = self.page_table.get_frame(page_number)
+            print(f"Page fault at logical address {logical_address} (Page {page_number}).")
         else:
             print(f"Accessing logical address {logical_address} (Page {page_number}, Offset {offset}).")
+
+        return {
+        "page_number": page_number,
+        "offset": offset,
+        "frame_number": frame,
+        "page_fault": page_fault,
+    }
     
-    def load_page(self, page_number):
-        # FIFO page replacement: Replace the oldest page
-        if self.frames[self.frame_counter] is not None:
-            print(f"Evicting page {self.frames[self.frame_counter]} from frame {self.frame_counter}.")
-        
-        self.frames[self.frame_counter] = page_number
-        self.page_table.set_entry(page_number, self.frame_counter)
-        print(f"Loaded page {page_number} into frame {self.frame_counter}.")
-        
-        # Update frame counter for FIFO replacement
-        self.frame_counter = (self.frame_counter + 1) % len(self.frames)
+def load_page(self, page_number):
+    # Evict old page if present
+    old_page = self.frames[self.frame_counter]
+    if old_page is not None:
+        print(f"Evicting page {old_page} from frame {self.frame_counter}.")
+        self.page_table.entries[old_page].valid = False  # Invalidate old page table entry
+
+    # Load new page
+    self.frames[self.frame_counter] = page_number
+    self.page_table.set_entry(page_number, self.frame_counter)
+    print(f"Loaded page {page_number} into frame {self.frame_counter}.")
+
+    # Update frame counter (FIFO)
+    self.frame_counter = (self.frame_counter + 1) % len(self.frames)
+
 
 
