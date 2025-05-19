@@ -59,7 +59,7 @@ if st.button("▶️ Start Simulation"):
 
             if enable_segmentation:
                 if logical_address >= segment_limit:
-                    row["TLB Status"] = "❌ Segmentation Fault"
+                    row["TLB Status"] = "Segmentation Fault"
                     row["Page Fault"] = "-"
                     row["TLB State"] = "-"
                     row["Frame Table State"] = "-"
@@ -68,21 +68,21 @@ if st.button("▶️ Start Simulation"):
 
             frame_number = tlb.lookup(logical_address)
             if frame_number is not None:
-                row["TLB Status"] = "✅ TLB Hit"
+                row["TLB Status"] = "TLB Hit"
                 tlb_hits += 1
                 row["Page Fault"] = "-"
             else:
-                row["TLB Status"] = "❌ TLB Miss"
+                row["TLB Status"] = "TLB Miss"
                 frame_number = page_table.get_frame(logical_address)
                 if frame_number is None:
-                    row["Page Fault"] = "💥 Page Fault"
+                    row["Page Fault"] = "Page Fault"
                     page_faults += 1
                     frame_number = replacement_algo.evict(frame_table, page_table)
                     page_table.set_entry(logical_address, frame_number)
                     frame_table.add_page(logical_address, frame_number)
                     replacement_algo.insert(logical_address if algorithm != "Clock" else frame_number)
                 else:
-                    row["Page Fault"] = f"✔️ Found in Page Table → Frame {frame_number}"
+                    row["Page Fault"] = f"Found in Page Table → Frame {frame_number}"
                 tlb.add_entry(logical_address, frame_number)
 
             row["TLB State"] = str(tlb.entries)
@@ -95,7 +95,40 @@ if st.button("▶️ Start Simulation"):
         # Display logs in tab1
         with tab1:
             st.markdown("### 📝 Simulation Log")
-            st.dataframe(result_df, use_container_width=True)
+
+        # Define color mapping
+        def color_status(status, kind):
+            color_map = {
+        "TLB Status": {
+        "TLB Hit": "#0ba53ca2",  # greenish
+        "TLB Miss": "#cf0f1f6e"  # reddish
+        },
+        "Page Fault": {
+        "Page Fault": "#ee8c1563",
+        "Found in Page Table →": "#5f16cd60",
+        "-": "#474646AE"
+        },
+        "Segmentation Fault": {
+        "Segmentation Fault": "#a9112a7e"
+        }
+        }
+            for key in color_map[kind]:
+                if status.startswith(key):
+                    return f'background-color: {color_map[kind][key]}'
+            return ''
+        # Convert DataFrame to styled HTML table
+        def style_row(row):
+            return [
+        '',
+        color_status(row["TLB Status"], "TLB Status"),
+        color_status(row["Page Fault"], "Page Fault"),
+        '',  # TLB State
+        ''   # Frame Table State
+        ]
+
+        styled_df = result_df.style.apply(lambda row: style_row(row), axis=1)
+        st.dataframe(styled_df, use_container_width=True)
+
 
         # Display tables in tab2
         with tab2:
