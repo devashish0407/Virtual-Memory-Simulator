@@ -16,12 +16,6 @@ page_size = st.sidebar.number_input("Page Size", min_value=1, value=8)
 logical_input = st.sidebar.text_input("Logical Addresses (comma-separated)", value="0,1,2,3,0,4,1,5,2,6,3,7")
 algorithm = st.sidebar.selectbox("Page Replacement Algorithm", ["FIFO", "LRU"])
 
-# Advanced Simulation Options
-st.sidebar.markdown("---")
-enable_segmentation = st.sidebar.checkbox("Enable Segmentation")
-enable_multilevel_paging = st.sidebar.checkbox("Enable Multilevel Paging")
-segment_limit = st.sidebar.number_input("Segment Limit", min_value=1, value=5) if enable_segmentation else None
-
 # Reset button
 if st.sidebar.button("Reset"):
     st.rerun()
@@ -43,8 +37,7 @@ if st.button("▶️ Start Simulation"):
             replacement_algo = FIFOReplacement(frame_size)
         elif algorithm == "LRU":
             replacement_algo = LRUReplacement(frame_size)
-        else:
-            replacement_algo = ClockReplacement(frame_size)
+            
 
         st.subheader("📂 Simulation Tabs")
         tab1, tab2, tab3 = st.tabs(["Simulation Log", "Frame & TLB Tables", "Statistics"])
@@ -55,15 +48,6 @@ if st.button("▶️ Start Simulation"):
         for logical_address in logical_addresses:
             row = {}
             row["Logical Address"] = logical_address
-
-            if enable_segmentation:
-                if logical_address >= segment_limit:
-                    row["TLB Status"] = "Segmentation Fault"
-                    row["Page Fault"] = "-"
-                    row["TLB State"] = "-"
-                    row["Frame Table State"] = "-"
-                    log_data.append(row)
-                    continue
 
             frame_number = tlb.lookup(logical_address)
             if frame_number is not None:
@@ -101,7 +85,6 @@ if st.button("▶️ Start Simulation"):
         "TLB Status": {
         "TLB Hit": "#0ba53ca2", 
         "TLB Miss": "#cf0f1f6e",
-        "Segmentation Fault": "#1440b87d" 
         },
         "Page Fault": {
         "Page Fault": "#ee8c1563",
@@ -143,8 +126,5 @@ if st.button("▶️ Start Simulation"):
             st.metric(label="TLB Hits", value=tlb_hits)
             hit_ratio = tlb_hits / len(logical_addresses)
             st.metric(label="TLB Hit Ratio", value=f"{hit_ratio:.2f}")
-            if enable_segmentation:
-                st.info("Segmentation was enabled. Addresses beyond segment limit were rejected.")
-            if enable_multilevel_paging:
-                st.warning("Multilevel paging is marked for future enhancement.")
+
 
