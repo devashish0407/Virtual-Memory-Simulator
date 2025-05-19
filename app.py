@@ -11,120 +11,149 @@ st.set_page_config(page_title="Virtual Memory Simulator", layout="wide")
 
 # Sidebar Inputs
 st.sidebar.header("Simulation Parameters")
-frame_size = st.sidebar.number_input("Frame Size", min_value=1, value=4)
-page_size = st.sidebar.number_input("Page Size", min_value=1, value=8)
-logical_input = st.sidebar.text_input("Logical Addresses (comma-separated)", value="0,1,2,3,0,4,1,5,2,6,3,7")
+
+page_size = st.sidebar.number_input("Page Size (bytes)", min_value=1, value=8)
+num_frames = st.sidebar.number_input("Number of Frames", min_value=1, value=4)
+
+logical_input = st.sidebar.text_input(
+    "Logical Addresses (comma-separated, in bytes)",
+    value="0, 8, 16, 4, 12, 24, 8, 0"
+)
+
 algorithm = st.sidebar.selectbox("Page Replacement Algorithm", ["FIFO", "LRU"])
 
 # Reset button
 if st.sidebar.button("Reset"):
-    st.rerun()
+    st.experimental_rerun()
 
 # Title
 st.title("📘 Virtual Memory Simulator")
 
-# Simulation Button
+# Run simulation
 if st.button("▶️ Start Simulation"):
-    logical_addresses = [int(x.strip()) for x in logical_input.split(",") if x.strip().isdigit()]
+    # Parse logical addresses input
+    logical_addresses = [x.strip() for x in logical_input.split(",") if x.strip().isdigit()]
+    logical_addresses = list(map(int, logical_addresses))
+
     if not logical_addresses:
-        st.error("❌ Please provide valid logical addresses.")
+        st.error("❌ Please provide valid logical addresses (numbers separated by commas).")
     else:
-        page_table = PageTable(page_size)
-        frame_table = FrameTable(frame_size)
-        tlb = TLB(4)
+        max_logical_address = max(logical_addresses)
+        num_pages = (max_logical_address // page_size) + 1
+
+        # Initialize backend objects
+        page_table = PageTable(num_pages)
+        frame_table = FrameTable(num_frames)
+        tlb = TLB(size=4)
 
         if algorithm == "FIFO":
-            replacement_algo = FIFOReplacement(frame_size)
-        elif algorithm == "LRU":
-            replacement_algo = LRUReplacement(frame_size)
-            
+            replacement_algo = FIFOReplacement(num_frames)
+        else:
+            replacement_algo = LRUReplacement(num_frames)
 
-        st.subheader("📂 Simulation Tabs")
-        tab1, tab2, tab3 = st.tabs(["Simulation Log", "Frame & TLB Tables", "Statistics"])
-
+        # Prepare logs and stats
         log_data = []
-        tlb_hits, page_faults = 0, 0
+        tlb_hits = 0
+        page_faults = 0
 
         for logical_address in logical_addresses:
-            row = {}
-            row["Logical Address"] = logical_address
+            page_number = logical_address // page_size
+            offset = logical_address % page_size
 
-            frame_number = tlb.lookup(logical_address)
+            row = {
+                "Logical Address": logical_address,
+                "Page Number": page_number,
+                "Offset": offset,
+            }
+
+            frame_number = tlb.lookup(page_number)
             if frame_number is not None:
-                row["TLB Status"] = "TLB Hit"
+                # TLB Hit
+                row["TLB Status"] = "Hit"
                 tlb_hits += 1
                 row["Page Fault"] = "-"
             else:
-                row["TLB Status"] = "TLB Miss"
-                frame_number = page_table.get_frame(logical_address)
-                if frame_number is None:
-                    row["Page Fault"] = "Page Fault"
-                    page_faults += 1
-                    frame_number = replacement_algo.evict(frame_table, page_table)
-                    page_table.set_entry(logical_address, frame_number)
-                    frame_table.add_page(logical_address, frame_number)
-                    replacement_algo.insert(logical_address if algorithm != "Clock" else frame_number)
-                else:
-                    row["Page Fault"] = f"Found in Page Table → Frame {frame_number}"
-                tlb.add_entry(logical_address, frame_number)
+                # TLB Miss
+                row["TLB Status"] = "Miss"
+                frame_number = page_table.get_frame(page_number)
 
-            row["TLB State"] = str(tlb.entries)
+                if frame_number is None:
+                    # Page fault
+                    page_faults += 1
+                    row["Page Fault"] = "Page Fault"
+
+                    frame_number = replacement_algo.evict(frame_table, page_table)
+                    page_table.set_entry(page_number, frame_number)
+                    frame_table.add_page(page_number, frame_number)
+                    replacement_algo.insert(page_number)
+                else:
+                    row["Page Fault"] = "No"
+
+                tlb.add_entry(page_number, frame_number)
+
+            row["Frame Number"] = frame_number
             row["Frame Table State"] = str(frame_table.frames)
+            row["TLB Entries"] = str(tlb.entries)
+
             log_data.append(row)
 
-        # Convert to DataFrame
-        result_df = pd.DataFrame(log_data)
+        # Display results in tabs
+        tab1, tab2, tab3 = st.tabs(["Simulation Log", "Frame & TLB Tables", "Statistics"])
 
-        # Display logs in tab1
         with tab1:
             st.markdown("### 📝 Simulation Log")
+            df_log = pd.DataFrame(log_data)
 
-        # Define color mapping
-        def color_status(status, kind):
-            color_map = {
-        "TLB Status": {
-        "TLB Hit": "#0ba53ca2", 
-        "TLB Miss": "#cf0f1f6e",
-        },
-        "Page Fault": {
-        "Page Fault": "#ee8c1563",
-        "Found in Page Table →": "#5f16cd60",
-        "-": "#474646AE"
-        },
+            # Function to color the "TLB Status" and "Page Fault" columns
+            def highlight_status(row):
+                tlb_status = row["TLB Status"]
+                page_fault = row["Page Fault"]
 
-        }
-            for key in color_map[kind]:
-                if status.startswith(key):
-                    return f'background-color: {color_map[kind][key]}'
-            return ''
-        # Convert DataFrame to styled HTML table
-        def style_row(row):
-            return [
-        '',
-        color_status(row["TLB Status"], "TLB Status"),
-        color_status(row["Page Fault"], "Page Fault"),
-        '',  # TLB State
-        ''   # Frame Table State
-        ]
+                tlb_color = ''
+                page_fault_color = ''
 
-        styled_df = result_df.style.apply(lambda row: style_row(row), axis=1)
-        st.dataframe(styled_df, use_container_width=True)
+                if tlb_status == "Hit":
+                    tlb_color = 'background-color: #1b8f21'  # light green
+                elif tlb_status == "Miss":
+                    tlb_color = 'background-color: #782f2a'  # light red/pink
 
+                if page_fault == "Page Fault":
+                    page_fault_color = 'background-color: #7a5b1c'  # light orange/yellow
 
-        # Display tables in tab2
+                return [
+                    '',               # Logical Address (no color)
+                    '',               # Page Number (no color)
+                    '',               # Offset (no color)
+                    tlb_color,        # TLB Status
+                    page_fault_color,  # Page Fault
+                    '',               # Frame Number
+                    '',               # Frame Table State
+                    '',               # TLB Entries
+                ]
+
+            styled_df = df_log.style.apply(highlight_status, axis=1)
+
+            st.dataframe(styled_df, use_container_width=True)
+
+        # Tab 2 - Tables
         with tab2:
-            st.markdown("### 🧠 Final Frame Table")
+            st.markdown("### 🧠 Frame Table")
             st.json(frame_table.frames)
 
-            st.markdown("### 📌 Final TLB Entries")
+            st.markdown("### 📌 TLB Entries")
             st.json(tlb.entries)
 
-        # Display stats in tab3
+            st.markdown("### 📝 Simulation Log")
+            df_log = pd.DataFrame(log_data)
+            st.dataframe(styled_df, use_container_width=True)
+
+        # Tab 3 - Statistics
         with tab3:
-            st.markdown("### 📊 Simulation Statistics")
-            st.metric(label="Page Faults", value=page_faults)
-            st.metric(label="TLB Hits", value=tlb_hits)
-            hit_ratio = tlb_hits / len(logical_addresses)
-            st.metric(label="TLB Hit Ratio", value=f"{hit_ratio:.2f}")
-
-
+            st.markdown("### 📊 Statistics")
+            st.metric("Page Faults", page_faults)
+            st.metric("TLB Hits", tlb_hits)
+            hit_ratio = tlb_hits / len(logical_addresses) if logical_addresses else 0
+            st.metric("TLB Hit Ratio", f"{hit_ratio:.2f}")
+            st.markdown("### 📝 Simulation Log")
+            df_log = pd.DataFrame(log_data)
+            st.dataframe(styled_df, use_container_width=True)
