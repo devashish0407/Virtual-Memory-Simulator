@@ -5,16 +5,6 @@ This project simulates virtual memory management in a computer system, specifica
 To run the simulator, you need to have the following installed:
 
 Python 3.x (Preferably Python 3.6+)
-
-PyQt5 (for the GUI)
-
-
-# Install Dependencies:
-Use pip to install the necessary dependencies:
-
-bash
-
-    pip install PyQt5
     
 🏁 Setup & Running the Simulator
 Clone the Repository:
@@ -30,6 +20,6 @@ You can run the simulator by simply executing the following command:
 
 bash
 
-    python main.py
+    streamlit run app.py
     
 This will open a GUI window where you can input your reference string, TLB size, and frame count, then simulate the virtual memory operations.
