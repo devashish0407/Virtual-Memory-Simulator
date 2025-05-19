@@ -1,7 +1,6 @@
 import streamlit as st
 from backend.fifo import FIFOReplacement
 from backend.lru import LRUReplacement
-from backend.clock import ClockReplacement
 from backend.page_table import PageTable
 from backend.frame_table import FrameTable
 from backend.tlb import TLB
@@ -15,7 +14,7 @@ st.sidebar.header("Simulation Parameters")
 frame_size = st.sidebar.number_input("Frame Size", min_value=1, value=4)
 page_size = st.sidebar.number_input("Page Size", min_value=1, value=8)
 logical_input = st.sidebar.text_input("Logical Addresses (comma-separated)", value="0,1,2,3,0,4,1,5,2,6,3,7")
-algorithm = st.sidebar.selectbox("Page Replacement Algorithm", ["FIFO", "LRU", "Clock"])
+algorithm = st.sidebar.selectbox("Page Replacement Algorithm", ["FIFO", "LRU"])
 
 # Advanced Simulation Options
 st.sidebar.markdown("---")
