@@ -100,17 +100,16 @@ if st.button("▶️ Start Simulation"):
         def color_status(status, kind):
             color_map = {
         "TLB Status": {
-        "TLB Hit": "#0ba53ca2",  # greenish
-        "TLB Miss": "#cf0f1f6e"  # reddish
+        "TLB Hit": "#0ba53ca2", 
+        "TLB Miss": "#cf0f1f6e",
+        "Segmentation Fault": "#1440b87d" 
         },
         "Page Fault": {
         "Page Fault": "#ee8c1563",
         "Found in Page Table →": "#5f16cd60",
         "-": "#474646AE"
         },
-        "Segmentation Fault": {
-        "Segmentation Fault": "#a9112a7e"
-        }
+
         }
             for key in color_map[kind]:
                 if status.startswith(key):
