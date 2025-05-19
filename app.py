@@ -7,41 +7,39 @@ from backend.frame_table import FrameTable
 from backend.tlb import TLB
 import pandas as pd
 
-# Set the page configuration for a better layout
+# Page config
 st.set_page_config(page_title="Virtual Memory Simulator", layout="wide")
 
-# Sidebar for input entries
-st.sidebar.header("Enter Simulation Parameters")
+# Sidebar Inputs
+st.sidebar.header("Simulation Parameters")
+frame_size = st.sidebar.number_input("Frame Size", min_value=1, value=4)
+page_size = st.sidebar.number_input("Page Size", min_value=1, value=8)
+logical_input = st.sidebar.text_input("Logical Addresses (comma-separated)", value="0,1,2,3,0,4,1,5,2,6,3,7")
+algorithm = st.sidebar.selectbox("Page Replacement Algorithm", ["FIFO", "LRU", "Clock"])
 
-frame_size = st.sidebar.number_input("Enter Frame Size", min_value=1, value=4, step=1)
-page_size = st.sidebar.number_input("Enter Page Size", min_value=1, value=8, step=1)
-logical_input = st.sidebar.text_input("Enter Logical Addresses (comma-separated)", value="0,1,2,3,0,4,1,5,2,6,3,7")
-algorithm = st.sidebar.selectbox("Choose Page Replacement Algorithm", ["FIFO", "LRU", "Clock"])
+# Advanced Simulation Options
+st.sidebar.markdown("---")
+enable_segmentation = st.sidebar.checkbox("Enable Segmentation")
+enable_multilevel_paging = st.sidebar.checkbox("Enable Multilevel Paging")
+segment_limit = st.sidebar.number_input("Segment Limit", min_value=1, value=5) if enable_segmentation else None
 
-# Add Reset Button to clear simulation
-reset_button = st.sidebar.button("Reset")
-
-# If the Reset button is clicked, reset the simulation
-if reset_button:
+# Reset button
+if st.sidebar.button("Reset"):
     st.rerun()
 
+# Title
+st.title("📘 Virtual Memory Simulator")
 
-# Main content for displaying results
-st.title("Virtual Memory Simulator")
-
-if st.button("Start Simulation"):
-    # Input validation and cleaning
+# Simulation Button
+if st.button("▶️ Start Simulation"):
     logical_addresses = [int(x.strip()) for x in logical_input.split(",") if x.strip().isdigit()]
-
     if not logical_addresses:
         st.error("❌ Please provide valid logical addresses.")
     else:
-        # Initialize components
         page_table = PageTable(page_size)
         frame_table = FrameTable(frame_size)
         tlb = TLB(4)
 
-        # Set the replacement algorithm
         if algorithm == "FIFO":
             replacement_algo = FIFOReplacement(frame_size)
         elif algorithm == "LRU":
@@ -49,52 +47,73 @@ if st.button("Start Simulation"):
         else:
             replacement_algo = ClockReplacement(frame_size)
 
-        st.subheader("🔍 Simulation Steps")
-        tlb_hits = 0
-        page_faults = 0
-        log_data = []
+        st.subheader("📂 Simulation Tabs")
+        tab1, tab2, tab3 = st.tabs(["Simulation Log", "Frame & TLB Tables", "Statistics"])
 
-        # Simulation loop
+        log_data = []
+        tlb_hits, page_faults = 0, 0
+
         for logical_address in logical_addresses:
-            result = []
-            result.append(f"Logical Address: {logical_address}")
+            row = {}
+            row["Logical Address"] = logical_address
+
+            if enable_segmentation:
+                if logical_address >= segment_limit:
+                    row["TLB Status"] = "❌ Segmentation Fault"
+                    row["Page Fault"] = "-"
+                    row["TLB State"] = "-"
+                    row["Frame Table State"] = "-"
+                    log_data.append(row)
+                    continue
 
             frame_number = tlb.lookup(logical_address)
             if frame_number is not None:
-                result.append("✅ TLB Hit")
+                row["TLB Status"] = "✅ TLB Hit"
                 tlb_hits += 1
+                row["Page Fault"] = "-"
             else:
-                result.append("❌ TLB Miss.")
+                row["TLB Status"] = "❌ TLB Miss"
                 frame_number = page_table.get_frame(logical_address)
-
                 if frame_number is None:
-                    result.append("💥 Page Fault!")
+                    row["Page Fault"] = "💥 Page Fault"
                     page_faults += 1
                     frame_number = replacement_algo.evict(frame_table, page_table)
                     page_table.set_entry(logical_address, frame_number)
                     frame_table.add_page(logical_address, frame_number)
                     replacement_algo.insert(logical_address if algorithm != "Clock" else frame_number)
                 else:
-                    result.append(f"✔️ Found in Page Table → Frame {frame_number}")
-
+                    row["Page Fault"] = f"✔️ Found in Page Table → Frame {frame_number}"
                 tlb.add_entry(logical_address, frame_number)
 
-            # Collecting the TLB and Frame Table states
-            result.append(f"Updated TLB: {tlb.entries}")
-            result.append(f"Frame Table: {frame_table.frames}")
+            row["TLB State"] = str(tlb.entries)
+            row["Frame Table State"] = str(frame_table.frames)
+            log_data.append(row)
 
-            # Append the result of each logical address processing
-            log_data.append(result)
+        # Convert to DataFrame
+        result_df = pd.DataFrame(log_data)
 
-        # Display results in a more user-friendly table format
-        st.markdown("### Simulation Results")
-        result_df = pd.DataFrame(log_data, columns=["Logical Address", "TLB Status", "Page Fault", "TLB State", "Frame Table State"])
-        st.dataframe(result_df)
+        # Display logs in tab1
+        with tab1:
+            st.markdown("### 📝 Simulation Log")
+            st.dataframe(result_df, use_container_width=True)
 
+        # Display tables in tab2
+        with tab2:
+            st.markdown("### 🧠 Final Frame Table")
+            st.json(frame_table.frames)
 
-        # Display simulation statistics
-        st.subheader("📊 Simulation Statistics")
-        st.write(f"**Page Faults:** {page_faults}")
-        st.write(f"**TLB Hits:** {tlb_hits}")
-        hit_ratio = tlb_hits / len(logical_addresses) if logical_addresses else 0
-        st.write(f"**TLB Hit Ratio:** {hit_ratio:.2f}")
+            st.markdown("### 📌 Final TLB Entries")
+            st.json(tlb.entries)
+
+        # Display stats in tab3
+        with tab3:
+            st.markdown("### 📊 Simulation Statistics")
+            st.metric(label="Page Faults", value=page_faults)
+            st.metric(label="TLB Hits", value=tlb_hits)
+            hit_ratio = tlb_hits / len(logical_addresses)
+            st.metric(label="TLB Hit Ratio", value=f"{hit_ratio:.2f}")
+            if enable_segmentation:
+                st.info("Segmentation was enabled. Addresses beyond segment limit were rejected.")
+            if enable_multilevel_paging:
+                st.warning("Multilevel paging is marked for future enhancement.")
+
